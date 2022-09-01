@@ -1,0 +1,813 @@
+[
+    {
+        "id": "8381c865.236028",
+        "type": "subflow",
+        "name": "Single value",
+        "info": "The 'single value' subflow allows to extract data from processing node.\r\n\r\n * Filter Data to extract only one variable after the \"processing node\" step .\r\n * Modify the message to fit with standard widgets such as gauges.\r\n * Limit the number of messages to a maximum of 10 msg per second.\r\n\r\n### **Input**\r\n\r\nThe subflow 'single value' takes in input the `msg.payload`\r\nfrom the processing output. All the messages sent by the processing node have the same structure.\r\n\r\n    \"payload\": {\r\n        \"groupname\": \"Snapshot2\",\r\n        \"variabledata\": [\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            },\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            },\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            }\r\n        ],\r\n        \"variablename\": \"int2\"\r\n      }\r\n    }\r\n\r\n### **Filter on selected variable**\r\nSeveral messages are sent by the processing node for each variable, so the first step of this 'single value' subflow is to filter and keep only messages related to the selected variable.\r\nThe 'filter variable' node will only keep messages with the right `variablename` key.\r\n\r\n### **Extract duplets table**\r\n\r\nThe received message is an Object containing {groupname, variabledata[array], variablename}.  \r\nThe array contains two variables :\r\n - `y` the value \r\n - `x` the time\r\n\r\nA single message contains multiple pairs of values extract at a regular time interval.\r\nThe time interval depends on the acquisition frequency.\r\nWith the 'change' node and the `set` property, the `msg.payload` is set to \r\n`msg.payload.variabledata`, only the data variable array is set into msg.payload.\r\n\r\n    \"payload\": {\r\n        \"variabledata\": [\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            },\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            },\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            }\r\n        ]\r\n    }\r\n\r\n### **Split duplets table**\r\n\r\nThe data variable array is split with a length of one in smaller objects by the 'split' node.\r\nEach new object contains two subvariables : `y` and `x`.\r\n\r\n    \"payload\": {\r\n        \"y\": \"9\",\r\n        \"x\": \"1567509421459\"\r\n    }\r\n\r\n\r\n### **Limit the number of messages**\r\n\r\nThe 'delay' node allows to limit the maximum number of message per second.\r\nIn the 'single value' subflow, one message is extracted per second.\r\n\r\n>_Be careful, a dashboard saturation risk exists if too many messages are received per second._\r\n\r\n### **Extract only y values**\r\n\r\nThe `msg.payload` is set to `msg.payload.y` with the `set` property. \r\nOnly `y` variable is set into msg.payload as single value.\r\n\r\n    \"payload\": { \r\n        \"y\": \"9\" \r\n    }\r\n\r\n### **Output** \r\n\r\nSome widgets such as the gauge and the text node are using the `msg.payload` property.  \r\nThe output node is linked to a gauge that allows to see the evolution \r\nof the `y` variable as a function of time.\r\n\r\n\r\n![subflow_gauge](images/subflow_gauge.png)\r\n\r\n### **Details**\r\n\r\nNote : The debug node allows to see clearly and easily the \r\nmessage at the node output.  \r\n\r\n\r\n> More details on : [Node-Red](https://nodered.org/docs/user-guide/editor/workspace/subflows)\r\n\r\n\r\n-------\r\n\r\n",
+        "category": "",
+        "in": [
+            {
+                "x": 40,
+                "y": 60,
+                "wires": [
+                    {
+                        "id": "3c5ffe0d.9063b2"
+                    }
+                ]
+            }
+        ],
+        "out": [
+            {
+                "x": 780,
+                "y": 140,
+                "wires": [
+                    {
+                        "id": "66397fd3.d8111",
+                        "port": 0
+                    }
+                ]
+            }
+        ],
+        "env": [
+            {
+                "name": "varfilter",
+                "type": "str",
+                "value": "",
+                "ui": {
+                    "icon": "font-awesome/fa-filter",
+                    "label": {
+                        "en-US": "Variable"
+                    },
+                    "type": "input",
+                    "opts": {
+                        "types": [
+                            "str"
+                        ]
+                    }
+                }
+            }
+        ],
+        "color": "#3CB4E6"
+    },
+    {
+        "id": "3c5ffe0d.9063b2",
+        "type": "switch",
+        "z": "8381c865.236028",
+        "name": "filter variable",
+        "property": "payload.variablename",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "varfilter",
+                "vt": "env"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 170,
+        "y": 60,
+        "wires": [
+            [
+                "4e5ba7a5.14dec8"
+            ]
+        ]
+    },
+    {
+        "id": "4e5ba7a5.14dec8",
+        "type": "change",
+        "z": "8381c865.236028",
+        "name": "keep only table of duplets",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "payload.variabledata",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 430,
+        "y": 60,
+        "wires": [
+            [
+                "42bc6ed.5b20d9"
+            ]
+        ]
+    },
+    {
+        "id": "42bc6ed.5b20d9",
+        "type": "split",
+        "z": "8381c865.236028",
+        "name": "Split a table[1..n] of duplets in n msg of single duplet",
+        "splt": "\\n",
+        "spltType": "str",
+        "arraySplt": 1,
+        "arraySpltType": "len",
+        "stream": false,
+        "addname": "",
+        "x": 800,
+        "y": 60,
+        "wires": [
+            [
+                "8b8ddb84.6fb208"
+            ]
+        ]
+    },
+    {
+        "id": "8b8ddb84.6fb208",
+        "type": "delay",
+        "z": "8381c865.236028",
+        "name": "",
+        "pauseType": "rate",
+        "timeout": "5",
+        "timeoutUnits": "seconds",
+        "rate": "10",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "x": 200,
+        "y": 140,
+        "wires": [
+            [
+                "66397fd3.d8111"
+            ]
+        ]
+    },
+    {
+        "id": "66397fd3.d8111",
+        "type": "change",
+        "z": "8381c865.236028",
+        "name": "keep only value and delete timestamp",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "payload.y",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 490,
+        "y": 140,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "7df55cff.a95044",
+        "type": "tab",
+        "label": "Basic_Flow",
+        "disabled": false,
+        "info": "# Basic flow to start with STM32CubeMonitor."
+    },
+    {
+        "id": "217e70e7.6336b",
+        "type": "acquisition out",
+        "z": "7df55cff.a95044",
+        "name": "myProbe_Out",
+        "probeconfig": "3fbfafe8.4751a",
+        "x": 520,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "750cb8f8.0214f8",
+        "type": "acquisition in",
+        "z": "7df55cff.a95044",
+        "name": "myProbe_In",
+        "probeconfig": "3fbfafe8.4751a",
+        "x": 130,
+        "y": 280,
+        "wires": [
+            [
+                "3fce2d13.40b242"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "5eef3215.dcb10c",
+        "type": "variables",
+        "z": "7df55cff.a95044",
+        "groupname": "myVariables",
+        "accesspoint": 0,
+        "execonfig": "a6f99287.ad5fc",
+        "variablelist": [],
+        "triggerstartmode": "manual",
+        "triggername": "dummy2",
+        "triggerthreshold": "30000",
+        "frequency": "",
+        "frequencyType": "0",
+        "snapshotheader": "",
+        "mode": "direct",
+        "lastImportedTime": 1662038534715,
+        "openStatus": true,
+        "x": 330,
+        "y": 120,
+        "wires": [
+            [
+                "217e70e7.6336b"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "3fce2d13.40b242",
+        "type": "processing",
+        "z": "7df55cff.a95044",
+        "groupname": "myVariables",
+        "groupid": "5eef3215.dcb10c",
+        "expressions": [],
+        "statistics": [],
+        "logmode": "no",
+        "logformat": "stcm",
+        "x": 330,
+        "y": 280,
+        "wires": [
+            [
+                "b99df136.7998f"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "a0ba2847.07a018",
+        "type": "serial out",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "serial": "772572be.6b863c",
+        "x": 350,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "a5534050.95069",
+        "type": "ui_button",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "group": "f9c34dde.1e2f4",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "label": "Ativar",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "icon": "",
+        "payload": "onn0000",
+        "payloadType": "str",
+        "topic": "topic",
+        "topicType": "msg",
+        "x": 110,
+        "y": 420,
+        "wires": [
+            [
+                "a0ba2847.07a018",
+                "6a6b47ae.046d18"
+            ]
+        ]
+    },
+    {
+        "id": "ef6471d5.2ad1c",
+        "type": "ui_button",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "group": "f9c34dde.1e2f4",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "Desligar",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "icon": "",
+        "payload": "off0000",
+        "payloadType": "str",
+        "topic": "topic",
+        "topicType": "msg",
+        "x": 100,
+        "y": 480,
+        "wires": [
+            [
+                "53b80433.ca691c",
+                "eea906f.64b36f8"
+            ]
+        ]
+    },
+    {
+        "id": "53b80433.ca691c",
+        "type": "serial out",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "serial": "772572be.6b863c",
+        "x": 350,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "6a6b47ae.046d18",
+        "type": "change",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "Operando",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 360,
+        "y": 360,
+        "wires": [
+            [
+                "a5f8c8b7.eb18d8"
+            ]
+        ]
+    },
+    {
+        "id": "eea906f.64b36f8",
+        "type": "change",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "Desligado",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 360,
+        "y": 480,
+        "wires": [
+            [
+                "a5f8c8b7.eb18d8"
+            ]
+        ]
+    },
+    {
+        "id": "31bbb4ab.42e69c",
+        "type": "ui_button",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "group": "f9c34dde.1e2f4",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "Emergência",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "icon": "",
+        "payload": "eme0000",
+        "payloadType": "str",
+        "topic": "topic",
+        "topicType": "msg",
+        "x": 110,
+        "y": 620,
+        "wires": [
+            [
+                "cf8b8be1.e5d578",
+                "353f46bf.6322aa"
+            ]
+        ]
+    },
+    {
+        "id": "cf8b8be1.e5d578",
+        "type": "serial out",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "serial": "772572be.6b863c",
+        "x": 330,
+        "y": 680,
+        "wires": []
+    },
+    {
+        "id": "a5f8c8b7.eb18d8",
+        "type": "ui_text",
+        "z": "7df55cff.a95044",
+        "group": "f9c34dde.1e2f4",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Estado de Operação",
+        "format": "{{msg.payload}}",
+        "layout": "col-center",
+        "x": 700,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "353f46bf.6322aa",
+        "type": "change",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "Parada de Emergência",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 360,
+        "y": 620,
+        "wires": [
+            [
+                "a5f8c8b7.eb18d8"
+            ]
+        ]
+    },
+    {
+        "id": "2bbb4f77.cd56d",
+        "type": "ui_slider",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "label": "Rampa de Subida",
+        "tooltip": "",
+        "group": "f9c34dde.1e2f4",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "outs": "end",
+        "topic": "topic",
+        "topicType": "msg",
+        "min": "5",
+        "max": "50",
+        "step": 1,
+        "x": 130,
+        "y": 780,
+        "wires": [
+            [
+                "fa611f61.c5339"
+            ]
+        ]
+    },
+    {
+        "id": "4ca336a5.01bd08",
+        "type": "serial out",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "serial": "772572be.6b863c",
+        "x": 550,
+        "y": 840,
+        "wires": []
+    },
+    {
+        "id": "61dc6c3.04fb494",
+        "type": "debug",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 780,
+        "wires": []
+    },
+    {
+        "id": "fa611f61.c5339",
+        "type": "template",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "field": "payload",
+        "fieldType": "msg",
+        "format": "handlebars",
+        "syntax": "mustache",
+        "template": "ram{{payload}}",
+        "output": "str",
+        "x": 350,
+        "y": 780,
+        "wires": [
+            [
+                "61dc6c3.04fb494",
+                "4ca336a5.01bd08"
+            ]
+        ]
+    },
+    {
+        "id": "b99df136.7998f",
+        "type": "subflow:8381c865.236028",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "env": [
+            {
+                "name": "varfilter",
+                "value": "dummy2",
+                "type": "str"
+            }
+        ],
+        "x": 540,
+        "y": 280,
+        "wires": [
+            [
+                "f5fb9963.089838"
+            ]
+        ]
+    },
+    {
+        "id": "f5fb9963.089838",
+        "type": "ui_text",
+        "z": "7df55cff.a95044",
+        "group": "f9c34dde.1e2f4",
+        "order": 5,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Corrente do Motor(mA)",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "x": 780,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "11589c79.eca454",
+        "type": "ui_button",
+        "z": "7df55cff.a95044",
+        "name": "",
+        "group": "f9c34dde.1e2f4",
+        "order": 6,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "label": "Exibir Valores",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "icon": "",
+        "payload": "",
+        "payloadType": "str",
+        "topic": "start",
+        "topicType": "msg",
+        "x": 160,
+        "y": 100,
+        "wires": [
+            [
+                "5eef3215.dcb10c"
+            ]
+        ]
+    },
+    {
+        "id": "3fbfafe8.4751a",
+        "type": "probe",
+        "probeid": "066CFF545555836687190834",
+        "probename": "ST-Link v2-1B (...90834)",
+        "protocol": "SWD",
+        "frequency": "1.8 MHz - Default",
+        "probeproperty": "{\"SWD\":[\"4.6 MHz\",\"1.8 MHz - Default\",\"950 kHz\",\"400 kHz\",\"150 kHz\"],\"JTAG\":[\"18 MHz\",\"9 MHz\",\"4.5 MHz\",\"2.25 MHz\",\"1.12 MHz - Default\",\"560 kHz\",\"280 kHz\",\"140 kHz\"]}",
+        "probeversion": "ST Link firmware version V2.J37",
+        "connectionType": "p2p"
+    },
+    {
+        "id": "a6f99287.ad5fc",
+        "type": "exe-config",
+        "name": "testeMonitor",
+        "exefile": "C:\\Users\\diogo\\STM32CubeIDE\\workspace_1.9.0\\testeMonitor\\Debug\\testeMonitor.elf",
+        "exefolder": "C:\\Users\\diogo\\STM32CubeIDE\\workspace_1.9.0\\testeMonitor\\Debug",
+        "exevariablelist": [
+            {
+                "address": "0x20000208",
+                "name": "__sbrk_heap_end",
+                "type": 5
+            },
+            {
+                "address": "0x080069e4",
+                "name": "AHBPrescTable[0]",
+                "type": 1
+            },
+            {
+                "address": "0x080069f4",
+                "name": "APBPrescTable[0]",
+                "type": 1
+            },
+            {
+                "address": "0x20000204",
+                "name": "dummy2",
+                "type": 1,
+                "checked": true
+            },
+            {
+                "address": "0x2000024c",
+                "name": "huart2.ErrorCode",
+                "type": 5
+            },
+            {
+                "address": "0x20000249",
+                "name": "huart2.gState",
+                "type": 2
+            },
+            {
+                "address": "0x20000244",
+                "name": "huart2.hdmarx",
+                "type": 5
+            },
+            {
+                "address": "0x20000240",
+                "name": "huart2.hdmatx",
+                "type": 5
+            },
+            {
+                "address": "0x20000210",
+                "name": "huart2.Init.BaudRate",
+                "type": 5
+            },
+            {
+                "address": "0x20000224",
+                "name": "huart2.Init.HwFlowCtl",
+                "type": 5
+            },
+            {
+                "address": "0x20000220",
+                "name": "huart2.Init.Mode",
+                "type": 5
+            },
+            {
+                "address": "0x20000228",
+                "name": "huart2.Init.OverSampling",
+                "type": 5
+            },
+            {
+                "address": "0x2000021c",
+                "name": "huart2.Init.Parity",
+                "type": 5
+            },
+            {
+                "address": "0x20000218",
+                "name": "huart2.Init.StopBits",
+                "type": 5
+            },
+            {
+                "address": "0x20000214",
+                "name": "huart2.Init.WordLength",
+                "type": 5
+            },
+            {
+                "address": "0x2000020c",
+                "name": "huart2.Instance",
+                "type": 5
+            },
+            {
+                "address": "0x20000248",
+                "name": "huart2.Lock",
+                "type": 2
+            },
+            {
+                "address": "0x20000234",
+                "name": "huart2.pRxBuffPtr",
+                "type": 5
+            },
+            {
+                "address": "0x2000022c",
+                "name": "huart2.pTxBuffPtr",
+                "type": 5
+            },
+            {
+                "address": "0x2000023c",
+                "name": "huart2.ReceptionType",
+                "type": 5
+            },
+            {
+                "address": "0x2000024a",
+                "name": "huart2.RxState",
+                "type": 2
+            },
+            {
+                "address": "0x2000023a",
+                "name": "huart2.RxXferCount",
+                "type": 3
+            },
+            {
+                "address": "0x20000238",
+                "name": "huart2.RxXferSize",
+                "type": 3
+            },
+            {
+                "address": "0x20000232",
+                "name": "huart2.TxXferCount",
+                "type": 3
+            },
+            {
+                "address": "0x20000230",
+                "name": "huart2.TxXferSize",
+                "type": 3
+            },
+            {
+                "address": "0x20000200",
+                "name": "i",
+                "type": 6
+            },
+            {
+                "address": "0x200001f8",
+                "name": "msg[0]",
+                "type": 2,
+                "checked": true
+            },
+            {
+                "address": "0x20000000",
+                "name": "SystemCoreClock",
+                "type": 5
+            },
+            {
+                "address": "0x20000250",
+                "name": "uwTick",
+                "type": 5
+            },
+            {
+                "address": "0x20000008",
+                "name": "uwTickFreq",
+                "type": 2
+            },
+            {
+                "address": "0x20000004",
+                "name": "uwTickPrio",
+                "type": 5
+            }
+        ],
+        "expand": false,
+        "filename": "testeMonitor.elf",
+        "exeModifiedTime": 1662036510253,
+        "configLastUpdate": 1662037550241
+    },
+    {
+        "id": "772572be.6b863c",
+        "type": "serial-port",
+        "serialport": "COM3",
+        "serialbaud": "115200",
+        "databits": "8",
+        "parity": "none",
+        "stopbits": "1",
+        "waitfor": "",
+        "dtr": "none",
+        "rts": "none",
+        "cts": "none",
+        "dsr": "none",
+        "newline": "\\n",
+        "bin": "false",
+        "out": "char",
+        "addchar": "",
+        "responsetimeout": "10000"
+    },
+    {
+        "id": "f9c34dde.1e2f4",
+        "type": "ui_group",
+        "name": "Chart",
+        "tab": "17d09b07.741a55",
+        "order": 1,
+        "disp": true,
+        "width": 15,
+        "collapse": false
+    },
+    {
+        "id": "17d09b07.741a55",
+        "type": "ui_tab",
+        "name": "Home",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    }
+]
