@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -52,6 +53,12 @@ char msg[TAM_MSG];
 int i = 0;
 char dummy[TAM_MSG];
 uint8_t dummy2 = 0;
+typedef enum{SOBE=0,DESCE} bordas_t; //
+uint16_t tpulso[2] = {500,608};
+bordas_t borda;
+uint16_t fase=900;//fase de 90 graus
+uint8_t proto;
+uint16_t ang;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,9 +105,12 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Receive_IT(&huart2, (uint8_t*)msg, 7);
-  //dummy
+	HAL_TIM_OC_Start_IT(&htim3, TIM_CHANNEL_2);
+	HAL_UART_Receive_IT(&huart2, (uint8_t*)msg, 7);
+	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, tpulso[SOBE]);
+	borda=DESCE;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -163,6 +173,20 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if(htim->Channel==HAL_TIM_ACTIVE_CHANNEL_1){
+		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, tpulso[borda]);
+		if(borda==DESCE){
+			borda=SOBE;
+		}
+		else{
+		borda=DESCE;
+		}
+	}
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(strcmp(msg, "onn0000") == 0){
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
