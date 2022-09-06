@@ -56,12 +56,18 @@
 //IHM
 char msg[8] = "Opaida\n";
 uint16_t dummy2 = 0;
+uint8_t ctrl = 5;         //deve ser inicalizado com valor diferente de 1 2 3
 //IHM
 //OC
 typedef enum {SOBE=0,DESCE}borda_t;
-uint16_t pulso[2]= {2, 102};
+uint16_t pulso[2]= {2, 120};
 borda_t borda;
+uint16_t fase = 0;
+uint16_t angulo = 0;
 //OC
+//TIM DE APOIO
+uint8_t dummy1 = 0;
+//TIM DE APOIO
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -109,10 +115,14 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM3_Init();
   MX_USART2_UART_Init();
+  MX_TIM10_Init();
   /* USER CODE BEGIN 2 */
+  //TIM DE APOIO
+  HAL_TIM_Base_Start_IT(&htim10);
+  //TIM DE APOIO
   //OC
-  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pulso[SOBE]);
-  borda=DESCE;
+  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pulso[DESCE]);
+  borda=SOBE;
   HAL_TIM_OC_Start_IT(&htim3, TIM_CHANNEL_1);
   //OC
   //IHM
@@ -129,6 +139,7 @@ int main(void)
 
   }
     /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
 
   /* USER CODE END 3 */
@@ -182,8 +193,27 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_TIM_OC_DelayElapsedCallbck(TIM_HandleTypeDef *htim)
-{
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(ctrl == 0 && fase < 180){
+		if(dummy1 < dummy2){
+			dummy1++;
+			fase =  dummy1 * angulo;
+		}
+	}
+	if(ctrl == 1 && fase > 0){ // ERRO ESTÁ NA CONDIÇÃO DESSE IF PÓS PRIMEIRA EXECUÇÃO HIHI
+		dummy1 = 0;
+		if(dummy1 < dummy2){
+			dummy1++;
+			fase =  180 - (dummy1 * angulo);
+		} else {
+			dummy1 = 0;
+			dummy2= 0;
+			angulo = 0;
+		}
+	}
+}
+
+void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim){
 	if(borda == DESCE){
 		borda = SOBE;
 	} else {
@@ -196,16 +226,19 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	//IHM
 	if(strcmp(msg, "onn0000") == 0){
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
+		ctrl = 0;
 		limpaBuffer(msg);
 		sprintf(msg, "ON\n");
 	}
 	if(strcmp(msg, "off0000") == 0){
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
+		ctrl = 1;
 		limpaBuffer(msg);
 		sprintf(msg, "OFF\n");
 	}
 	if(strcmp(msg, "eme0000") == 0){
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
+		ctrl = 2;
 		limpaBuffer(msg);
 		sprintf(msg, "EMERG\n");
 	}
@@ -214,6 +247,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 			msg[j] = '0';
 		}
 		dummy2 = atoi(msg)/100;
+		angulo = 180 / dummy2;
 		limpaBuffer(msg);
 	}
 	if(strstr(msg, "rap") != NULL){
@@ -221,6 +255,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 			msg[j] = '0';
 		}
 		dummy2 = atoi(msg)/1000;
+		angulo = 180 / dummy2;
 		limpaBuffer(msg);
 	}
 	//FALTA MANDAR MENSAGENS DE RAMPA DE SUBIDA, RAMPA DE DESCIDA, SOBRECORRENTE DE 150% E 200% DE CORRENTE LIMITE
