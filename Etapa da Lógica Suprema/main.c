@@ -19,7 +19,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
-#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -39,16 +38,17 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-//IHM
-#define TIMEOUT       1000
-#define TAM_MSG       8
-//IHM
-//OC
-#define CH1 0
-//OC
-//INSTRUMENTAÇÃO --> ADC1
-#define BUFFER_LENGTH 1
-//INSTRUMENTAÇÃO --> ADC1
+#define FREQ_BASE_DIV_PELO_PSC 			10000
+#define TIMEOUT       					1000
+#define VALOR_RESISTOR 					470
+#define ANGULO_TOTAL_DE_VARIACAO 		169
+#define TAM_MSG      					8
+#define STAND_BY 						5
+#define EMERGENCIA 						2
+#define DESLIGADO 						1
+#define LIGADO 							0
+#define BUFFER_LENGTH 					1
+#define CH1 							0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -60,11 +60,11 @@
 
 /* USER CODE BEGIN PV */
 //IHM
-char msg[8] = "Opaida\n";
-char msg2[] = "Opaida\n";
-float dummy2 = 0.00;
-float dummy3 = 0.00;
-uint8_t ctrl = 5;         //deve ser inicalizado com valor diferente de 1 2 3
+char msg[8] = "OFF\n";
+char msg2[200] = "OFF\n";
+float tempoSubida = 0.00;
+float tempoDescida = 0.00;
+uint8_t ctrl = 4;         //deve ser inicalizado com valor diferente de 1 2 3
 //IHM
 //OC
 typedef enum {SOBE=0,DESCE}borda_t;
@@ -94,6 +94,11 @@ void limpaBuffer(char sujeira[7]){
 	for(int i = 0; i<=7; i++){
 		sujeira[i] = 0;
 	}
+}
+
+float converteBitVolt(float valorBit){
+	float valorConvertido = (valorBit*3.3)/4096;
+	return(valorConvertido);
 }
 /* USER CODE END PFP */
 
@@ -131,11 +136,11 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM3_Init();
-  MX_DMA_Init();
   MX_TIM10_Init();
   MX_ADC1_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   //TIM DE APOIO
   HAL_TIM_Base_Start_IT(&htim10);
@@ -145,12 +150,12 @@ int main(void)
   HAL_TIM_OC_Start_IT(&htim3, TIM_CHANNEL_1);
   //OC
   //IHM
-  HAL_UART_Transmit(&huart2, msg, strlen(msg), TIMEOUT);
+  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), TIMEOUT);
   limpaBuffer(msg);
-  HAL_UART_Receive_IT(&huart2, msg, 7);
+  HAL_UART_Receive_IT(&huart2, (uint8_t*)msg, 7);
   //IHM
   //ADC --> ETAPA DE INTRSUMENTAÇÃO
-  HAL_ADC_Start_DMA(&hadc1, adc_ad, BUFFER_LENGTH);
+  HAL_ADC_Start_IT(&hadc1);
   HAL_TIM_Base_Start(&htim2);
   //ADC --> ETAPA DE INTRSUMENTAÇÃO
   /* USER CODE END 2 */
@@ -218,26 +223,51 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 //------------------------PPM------------------------------//
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-	if(ctrl == 0){
-		HAL_TIM_OC_Start_IT(&htim3, TIM_CHANNEL_1);
-		htim10.Instance->ARR = (10000/frequenciaSubida)-1;
-		if(dummy1 < 169){
-			pulso[0] = 8 + dummy1;
-			pulso[1] = 58 + dummy1;
+	if(ctrl == LIGADO){
+		if(dummy1 == 0){
+			HAL_TIM_OC_Start_IT(&htim3, TIM_CHANNEL_1);
+			htim10.Instance->ARR = (FREQ_BASE_DIV_PELO_PSC/frequenciaSubida)-1;
+			sprintf(msg, "RDS\n");
+			HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), TIMEOUT);
+			HAL_UART_Receive_IT(&huart2, (uint8_t*)msg, 7);
+		}
+
+		if(dummy1 < ANGULO_TOTAL_DE_VARIACAO){
+			pulso[0] = 8 + dummy1*10;
+			pulso[1] = 58 + dummy1*10;
 			dummy1++;
+		} else {
+			ctrl = STAND_BY;
+			sprintf(msg, "ON\n");
+			HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), TIMEOUT);
+			HAL_UART_Receive_IT(&huart2, (uint8_t*)msg, 7);
 		}
 	}
-	if(ctrl == 1){
-		HAL_TIM_OC_Start_IT(&htim3, TIM_CHANNEL_1);
-		htim10.Instance->ARR = (10000/frequenciaDescida)-1;
+	if(ctrl == DESLIGADO){
+		if(dummy1 == ANGULO_TOTAL_DE_VARIACAO){
+			HAL_TIM_OC_Start_IT(&htim3, TIM_CHANNEL_1);
+			htim10.Instance->ARR = (FREQ_BASE_DIV_PELO_PSC/frequenciaDescida)-1;
+			sprintf(msg, "RDD\n");
+			HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), TIMEOUT);
+			HAL_UART_Receive_IT(&huart2, (uint8_t*)msg, 7);
+		}
 		if(dummy1 > 0){
-			pulso[0] = 169 - (8 + dummy1);
-			pulso[1] = 169 - (58 + dummy1);
+			pulso[0] = 8 + dummy1*10;
+			pulso[1] = 58 + dummy1*10;
 			dummy1--;
+		} else {
+			sprintf(msg, "OFF\n");
+			HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), TIMEOUT);
+			HAL_UART_Receive_IT(&huart2, (uint8_t*)msg, 7);
+			ctrl = STAND_BY;
 		}
 	}
-	if(ctrl == 2){
+	if(ctrl == EMERGENCIA){
 		HAL_TIM_OC_Stop_IT(&htim3, TIM_CHANNEL_1);
+	}
+
+	if(ctrl == STAND_BY){
+		return;
 	}
 }
 
@@ -252,40 +282,28 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim){
 //------------------------PPM------------------------------//
 //-------------------Instrumentação------------------------//
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
-	adc_volt[ctrlADC] = adc_ad[0];
-	ctrlADC -=-(!0); //ctrl++
-
-	if(ctrlADC == 50){
-		ctrlADC = 0;
-	}
-
-	for(uint8_t i=0;i!=50;i++){
-		 adc_voltCalc = (adc_voltCalc + adc_volt[i]);
-		 if(i == 49){
-			adc_voltCalcS = (((adc_voltCalc/50)*3.3)/4096);
-			//sprintf(msg, "Tensao:%.2f", adc_voltCalcS);  COMO QUE ENVIA ISSO SEM TRAVAR O CARALHO DO CODIGO?
-			adc_voltCalc = 0;
-		}
-	}
+	adc_volt[0] =  HAL_ADC_GetValue(&hadc1);
+	adc_voltCalcS = (converteBitVolt(adc_volt[0])/VALOR_RESISTOR)*1000;
+	sprintf(msg2, "%.2fmA\n", adc_voltCalcS);
+	HAL_UART_Transmit(&huart2, (uint8_t*)msg2, strlen(msg2), TIMEOUT);
+	HAL_UART_Receive_IT(&huart2, (uint8_t*)msg, 7);
 }
 //-------------------Instrumentação------------------------//
 //------------------------IHM------------------------------//
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(strcmp(msg, "onn0000") == 0){
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
-		ctrl = 0;
+		ctrl = LIGADO;
 		limpaBuffer(msg);
-		sprintf(msg, "ON\n");
 	}
 	if(strcmp(msg, "off0000") == 0){
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
-		ctrl = 1;
+		ctrl = DESLIGADO;
 		limpaBuffer(msg);
-		sprintf(msg, "OFF\n");
 	}
 	if(strcmp(msg, "eme0000") == 0){
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
-		ctrl = 2;
+		ctrl = EMERGENCIA;
 		limpaBuffer(msg);
 		sprintf(msg, "EMERG\n");
 	}
@@ -293,45 +311,37 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 		for(int j = 0; j!=3;j++){
 			msg[j] = '0';
 		}
-		dummy2 = atoi(msg)/100;
-		//angulo = (169 / dummy2);
-		frequenciaSubida = 1/(dummy2/169);
-		//htim10.Instance->ARR = (10000/frequencia)-1;
+		tempoSubida = atoi(msg)/100;
+		frequenciaSubida = 1/(tempoSubida/ANGULO_TOTAL_DE_VARIACAO);
 		limpaBuffer(msg);
 	}
 	if(strstr(msg, "rap") != NULL){
 		for(int j = 0; j!=3;j++){
 			msg[j] = '0';
 		}
-		dummy2 = atoi(msg)/1000;
-		//angulo = (169 / dummy2);
-		frequenciaSubida = 1/(dummy2/169);
-		//htim10.Instance->ARR = (10000/frequencia)-1;
+		tempoSubida = atoi(msg)/1000;
+		frequenciaSubida = 1/(tempoSubida/ANGULO_TOTAL_DE_VARIACAO);
 		limpaBuffer(msg);
 	}
 	if(strstr(msg, "rad") != NULL){
 		for(int j = 0; j!=3;j++){
 			msg[j] = '0';
 		}
-		dummy3 = atoi(msg)/100;
-		//angulo = (169 / dummy2);
-		frequenciaDescida = 1/(dummy3/169);
-		//htim10.Instance->ARR = (10000/frequencia)-1;
+		tempoDescida = atoi(msg)/100;
+		frequenciaDescida = 1/(tempoDescida/ANGULO_TOTAL_DE_VARIACAO);
 		limpaBuffer(msg);
 	}
 	if(strstr(msg, "rpd") != NULL){
 		for(int j = 0; j!=3;j++){
 			msg[j] = '0';
 		}
-		dummy3 = atoi(msg)/1000;
-		//angulo = (169 / dummy2);
-		frequenciaDescida = 1/(dummy3/169);
-		//htim10.Instance->ARR = (10000/frequencia)-1;
+		tempoDescida = atoi(msg)/1000;
+		frequenciaDescida = 1/(tempoDescida/ANGULO_TOTAL_DE_VARIACAO);
 		limpaBuffer(msg);
 	}
 	//FALTA MANDAR MENSAGENS DE RAMPA DE SUBIDA, RAMPA DE DESCIDA, SOBRECORRENTE DE 150% E 200% DE CORRENTE LIMITE
-	HAL_UART_Transmit(&huart2, msg, strlen(msg), TIMEOUT);
-	HAL_UART_Receive_IT(&huart2, msg, 7);
+	HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), TIMEOUT);
+	HAL_UART_Receive_IT(&huart2, (uint8_t*)msg, 7);
 }
 //------------------------IHM------------------------------//
 /* USER CODE END 4 */
