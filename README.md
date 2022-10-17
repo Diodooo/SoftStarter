@@ -13,6 +13,8 @@ Este projeto visa a construção de um Soft Starter. Dentre as funcionalidades t
 
 OBS: Neste repositório estão a parte do software e o esquemático do projeto, a parte do hardware fica somente no plano físico 😉
 
+A execução prática do projeto pode ser encontrada neste link --> https://www.linkedin.com/feed/update/urn:li:activity:6986488794845745152/
+
 ## Never forget: O Zucco estava certo ele passou PPM no dia 11/05 
 
 This project aims to build a Soft Starter. Between its functionalities we have:
@@ -28,5 +30,7 @@ This project aims to build a Soft Starter. Between its functionalities we have:
 - Remote MHI
 
 OBS: In this repository are the software and the schematic part, the hardware part stays in physical plane 😉.
+
+The practical execution of the project can be find in this link --> https://www.linkedin.com/feed/update/urn:li:activity:6986488794845745152/
 
 ## Nunca esqueça: Zucco was right, he lessioned about PPM in 05/11
